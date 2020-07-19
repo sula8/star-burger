@@ -1,0 +1,15 @@
+__pycache__
+.idea/
+venv
+
+config
+
+bundles/**
+db.sqlite3
+.cache
+node_modules/
+media/
+
+.DS_Store
+.env
+*.sqlite3
