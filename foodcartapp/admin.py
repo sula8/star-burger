@@ -2,11 +2,16 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.shortcuts import reverse
 
-from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory
+from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, OrderProduct
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
     model = RestaurantMenuItem
+    extra = 0
+
+
+class OrderProductInline(admin.TabularInline):
+    model = OrderProduct
     extra = 0
 
 
@@ -100,3 +105,11 @@ class ProductAdmin(admin.ModelAdmin):
 @admin.register(ProductCategory)
 class ProductAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(Order)
+class ProductAdmin(admin.ModelAdmin):
+
+    inlines = [
+        OrderProductInline
+    ]
