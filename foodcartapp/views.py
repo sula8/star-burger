@@ -1,14 +1,24 @@
-import json
-
-from django.core.exceptions import ObjectDoesNotExist
-from django.db import IntegrityError
 from django.templatetags.static import static
 from django.http import JsonResponse
-from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer
 
 from foodcartapp.models import Product, Order, OrderProduct
+
+
+class OrderProductSerializer(ModelSerializer):
+    class Meta:
+        model = OrderProduct
+        fields = ['product', 'quantity']
+
+
+class OrderSerializer(ModelSerializer):
+    products = OrderProductSerializer(many=True)
+
+    class Meta:
+        model = Order
+        fields = ['firstname', 'lastname', 'phonenumber', 'address', 'products']
 
 
 def banners_list_api(request):
@@ -65,53 +75,29 @@ def product_list_api(request):
 
 @api_view(['POST'])
 def register_order(request):
-    order_raw = request.data
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
-    if not order_raw:
-        content = {'errors': "Order is empty"}
-        return Response(content, status=status.HTTP_200_OK)
+    order = Order.objects.create(
+        firstname=serializer.validated_data['firstname'],
+        lastname=serializer.validated_data['lastname'],
+        phonenumber=serializer.validated_data['phonenumber'],
+        address=serializer.validated_data['address'],
+    )
 
-    firstname = order_raw.get('firstname')
-    if not firstname.__class__ == str:
-        content = {'errors': "The firstname is not specified or not str"}
-        return Response(content, status=status.HTTP_200_OK)
+    products_fields = serializer.validated_data['products']
+    products = [OrderProduct(order=order, **fields) for fields in products_fields]
+    OrderProduct.objects.bulk_create(products)
 
-    lastname = order_raw.get('lastname')
-    if not lastname.__class__ == str:
-        content = {'errors': "The lastname is not specified or not str"}
-        return Response(content, status=status.HTTP_200_OK)
+    return Response({
+        'order_id': order.id,
+        'firstname': order.firstname,
+        'lastname': order.lastname,
+        'phonenumber': order.phonenumber,
+        'address': order.address,
+    })
 
-    phonenumber = order_raw.get('phonenumber')
-    if not phonenumber:
-        content = {'errors': "The phonenumber is not specified"}
-        return Response(content, status=status.HTTP_200_OK)
-
-    address = order_raw.get('address')
-    if not address.__class__ == str:
-        content = {'errors': "The address is not specified or not str"}
-        return Response(content, status=status.HTTP_200_OK)
-
-    customer = Order.objects.create(firstname=firstname, lastname=lastname, phonenumber=phonenumber, address=address)
-
-    order_products_raw = order_raw.get('products')
-    if not order_products_raw:
-        content = {'errors': "Product isn't valid"}
-        return Response(content, status=status.HTTP_200_OK)
-
-    for order_product in order_products_raw:
-        try:
-            product = Product.objects.get(id=order_product.get('product'))
-        except ObjectDoesNotExist:
-            content = {'errors': "Product doesn't exist"}
-            return Response(content, status=status.HTTP_200_OK)
-        except AttributeError:
-            content = {'errors': "Product isn't valid"}
-            return Response(content, status=status.HTTP_200_OK)
-
-        OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
-
-    content = {'success': 'OK'}
-    return Response(content, status=status.HTTP_200_OK)
 
 
 #{"products": [{"product": 1, "quantity": 2}, {"product": 4, "quantity": 3}], "firstname": "Иван1", "lastname": "Ваня1", "phonenumber": "1877777777", "address": "Москва 2"}
+#{"products": [{"product": 1, "quantity": 1}], "firstname": "Василий", "lastname": "Васильевич", "phonenumber": "+79123456789", "address": "Лондон"}

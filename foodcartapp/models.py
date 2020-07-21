@@ -83,7 +83,7 @@ class Order(models.Model):
 class OrderProduct(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, verbose_name='Заказ')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name='Блюдо')
-    quantity = models.PositiveSmallIntegerField('Количество', default=1)
+    quantity = models.PositiveSmallIntegerField('Количество', default=1) #TODO remove default
 
     def __str__(self):
         return f"{self.product.name}, {self.order.firstname} {self.order.lastname}, {self.order.address}"
