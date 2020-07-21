@@ -1,5 +1,6 @@
 import json
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError
 from django.templatetags.static import static
 from django.http import JsonResponse
@@ -71,13 +72,28 @@ def register_order(request):
         return Response(content, status=status.HTTP_200_OK)
 
     firstname = order_raw.get('firstname')
+    if not firstname.__class__ == str:
+        content = {'errors': "The firstname is not specified or not str"}
+        return Response(content, status=status.HTTP_200_OK)
+
     lastname = order_raw.get('lastname')
+    if not lastname.__class__ == str:
+        content = {'errors': "The lastname is not specified or not str"}
+        return Response(content, status=status.HTTP_200_OK)
+
     phonenumber = order_raw.get('phonenumber')
+    if not phonenumber:
+        content = {'errors': "The phonenumber is not specified"}
+        return Response(content, status=status.HTTP_200_OK)
+
     address = order_raw.get('address')
-    order_products_raw = order_raw.get('products')
+    if not address.__class__ == str:
+        content = {'errors': "The address is not specified or not str"}
+        return Response(content, status=status.HTTP_200_OK)
 
     customer = Order.objects.create(firstname=firstname, lastname=lastname, phonenumber=phonenumber, address=address)
 
+    order_products_raw = order_raw.get('products')
     if not order_products_raw:
         content = {'errors': "Product isn't valid"}
         return Response(content, status=status.HTTP_200_OK)
@@ -85,20 +101,14 @@ def register_order(request):
     for order_product in order_products_raw:
         try:
             product = Product.objects.get(id=order_product.get('product'))
-            OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
+        except ObjectDoesNotExist:
+            content = {'errors': "Product doesn't exist"}
+            return Response(content, status=status.HTTP_200_OK)
         except AttributeError:
             content = {'errors': "Product isn't valid"}
             return Response(content, status=status.HTTP_200_OK)
-        except TypeError:
-            content = {'errors': "Product isn't valid"}
-            return Response(content, status=status.HTTP_200_OK)
-        except ValueError:
-            content = {'errors': "Product isn't valid"}
-            return Response(content, status=status.HTTP_200_OK)
-        except IntegrityError:
-            content = {'errors': "Product isn't valid"}
-            return Response(content, status=status.HTTP_200_OK)
 
+        OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
 
     content = {'success': 'OK'}
     return Response(content, status=status.HTTP_200_OK)
