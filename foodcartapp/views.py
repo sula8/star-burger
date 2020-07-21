@@ -1,5 +1,6 @@
 import json
 
+from django.db import IntegrityError
 from django.templatetags.static import static
 from django.http import JsonResponse
 from rest_framework import status
@@ -65,6 +66,9 @@ def product_list_api(request):
 def register_order(request):
     order_raw = request.data
 
+    if not order_raw:
+        content = {'errors': "Order is empty"}
+        return Response(content, status=status.HTTP_200_OK)
 
     firstname = order_raw.get('firstname')
     lastname = order_raw.get('lastname')
@@ -74,13 +78,26 @@ def register_order(request):
 
     customer = Order.objects.create(firstname=firstname, lastname=lastname, phonenumber=phonenumber, address=address)
 
-
+    if not order_products_raw:
+        content = {'errors': "Product isn't valid"}
+        return Response(content, status=status.HTTP_200_OK)
 
     for order_product in order_products_raw:
-        product = Product.objects.get(id=order_product.get('product'))
-        OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
-
-
+        try:
+            product = Product.objects.get(id=order_product.get('product'))
+            OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
+        except AttributeError:
+            content = {'errors': "Product isn't valid"}
+            return Response(content, status=status.HTTP_200_OK)
+        except TypeError:
+            content = {'errors': "Product isn't valid"}
+            return Response(content, status=status.HTTP_200_OK)
+        except ValueError:
+            content = {'errors': "Product isn't valid"}
+            return Response(content, status=status.HTTP_200_OK)
+        except IntegrityError:
+            content = {'errors': "Product isn't valid"}
+            return Response(content, status=status.HTTP_200_OK)
 
 
     content = {'success': 'OK'}
