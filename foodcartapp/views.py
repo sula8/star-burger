@@ -2,7 +2,9 @@ import json
 
 from django.templatetags.static import static
 from django.http import JsonResponse
-
+from rest_framework import status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 from foodcartapp.models import Product, Order, OrderProduct
 
@@ -59,8 +61,10 @@ def product_list_api(request):
     })
 
 
+@api_view(['POST'])
 def register_order(request):
-    order_raw = json.loads(request.body.decode())
+    order_raw = request.data
+
 
     firstname = order_raw.get('firstname')
     lastname = order_raw.get('lastname')
@@ -70,9 +74,17 @@ def register_order(request):
 
     customer = Order.objects.create(firstname=firstname, lastname=lastname, phonenumber=phonenumber, address=address)
 
+
+
     for order_product in order_products_raw:
         product = Product.objects.get(id=order_product.get('product'))
         OrderProduct.objects.create(order=customer, product=product, quantity=order_product.get('quantity'))
 
 
-    return JsonResponse({})
+
+
+    content = {'success': 'OK'}
+    return Response(content, status=status.HTTP_200_OK)
+
+
+#{"products": [{"product": 1, "quantity": 2}, {"product": 4, "quantity": 3}], "firstname": "Иван1", "lastname": "Ваня1", "phonenumber": "1877777777", "address": "Москва 2"}
