@@ -8,9 +8,10 @@ from foodcartapp.models import Product, Order, OrderProduct
 
 
 class OrderProductSerializer(ModelSerializer):
+
     class Meta:
         model = OrderProduct
-        fields = ['product', 'quantity']
+        fields = ['product', 'quantity', 'price']
 
 
 class OrderSerializer(ModelSerializer):
@@ -86,7 +87,8 @@ def register_order(request):
     )
 
     products_fields = serializer.validated_data['products']
-    products = [OrderProduct(order=order, **fields) for fields in products_fields]
+    products = [OrderProduct(order=order, price=fields.get('product').price, **fields) for fields in products_fields]
+
     OrderProduct.objects.bulk_create(products)
 
     return Response({
