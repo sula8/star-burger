@@ -95,10 +95,10 @@ class Order(models.Model):
 
         restaurants_with_distance = []
         for restaurant in restaurants:
-            restaurant_instance = restaurant[0]
+            restaurant_name = restaurant[0]
             restaurant_coordinates = restaurant[1]
             restaurant_distance = round(distance.distance(order_coordinates, restaurant_coordinates).km, 2)
-            restaurants_with_distance.append((restaurant_instance, restaurant_distance))
+            restaurants_with_distance.append((restaurant_name, restaurant_distance))
 
         return sorted(restaurants_with_distance, key=lambda restaurant: restaurant[1])
 
@@ -145,7 +145,7 @@ def order_post_save_handler(instance, **kwargs):
     order_restaurants_with_coordinates = []
     for restaurant in order_restaurants:
         restaurant_coordinates = get_cached_coordinates('restaurant', restaurant)
-        order_restaurants_with_coordinates.append((restaurant, restaurant_coordinates))
+        order_restaurants_with_coordinates.append((restaurant.name, restaurant_coordinates))
 
     cache.set(f'order_{instance.id}_restaurants', order_restaurants_with_coordinates)
 
