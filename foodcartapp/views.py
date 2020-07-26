@@ -1,5 +1,6 @@
 from django.templatetags.static import static
 from django.http import JsonResponse
+from django.db import transaction, IntegrityError
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
@@ -74,6 +75,7 @@ def product_list_api(request):
     })
 
 
+@transaction.atomic
 @api_view(['POST'])
 def register_order(request):
     serializer = OrderSerializer(data=request.data)
@@ -87,9 +89,11 @@ def register_order(request):
     )
 
     products_fields = serializer.validated_data['products']
-    products = [OrderProduct(order=order, price=fields.get('product').price, **fields) for fields in products_fields]
-
-    OrderProduct.objects.bulk_create(products)
+    if products_fields:
+        products = [OrderProduct(order=order, price=fields.get('product').price, **fields) for fields in products_fields]
+        OrderProduct.objects.bulk_create(products)
+    else:
+        raise IntegrityError('Order must have at least one product')
 
     return Response({
         'order_id': order.id,
@@ -98,8 +102,3 @@ def register_order(request):
         'phonenumber': order.phonenumber,
         'address': order.address,
     })
-
-
-
-#{"products": [{"product": 1, "quantity": 2}, {"product": 4, "quantity": 3}], "firstname": "Иван1", "lastname": "Ваня1", "phonenumber": "1877777777", "address": "Москва 2"}
-#{"products": [{"product": 1, "quantity": 1}], "firstname": "Василий", "lastname": "Васильевич", "phonenumber": "+79123456789", "address": "Лондон"}
