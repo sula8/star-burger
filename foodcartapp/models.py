@@ -100,12 +100,14 @@ class Order(models.Model):
 
     def restaurants_with_distance(self):
         order_restaurants = self.order_restaurants()
+        order_address = self.address.strip()
 
         addresses = [restaurant.address.strip() for restaurant in order_restaurants]
-        addresses.append(self.address.strip())
+        addresses.append(order_address)
 
         coordinates = get_bulk_cache_coordinates(addresses)
-        order_coordinates = coordinates.get(self.address.strip())
+
+        order_coordinates = coordinates.get(order_address)
 
         restaurants_with_distance = []
         for restaurant in order_restaurants:
@@ -157,4 +159,3 @@ def get_bulk_cache_coordinates(addresses):
             coordinates[address] = address_coordinates
 
     return coordinates
-
