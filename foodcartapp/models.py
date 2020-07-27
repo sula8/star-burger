@@ -2,8 +2,6 @@ from datetime import datetime
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.core.cache import cache
 from geopy import distance
 
@@ -88,10 +86,30 @@ class Order(models.Model):
     called_at = models.DateTimeField('Дата звонка', null=True, blank=True)
     delivered_at = models.DateTimeField('Дата доставки заказа', null=True, blank=True)
 
-    def get_restaurants_with_distance(self):
-        order_coordinates = get_cached_coordinates('order', self)
+    def restaurants_with_coordinates(self):
+        ordered_products = self.ordered_products.all()
+        order_restaurants = []
+        for product in ordered_products:
+            menu_items = product.product.menu_items.all()
+            for item in menu_items:
+                if item.restaurant in order_restaurants:
+                    continue
+                order_restaurants.append(item.restaurant)
 
-        restaurants = get_cached_order_restaurant(self)
+        restaurants_coordinates = get_cleared_restaurants_coordinates(order_restaurants)
+
+        order_restaurants_with_coordinates = []
+        for restaurant in order_restaurants:
+            restaurant_address = restaurant.address.strip()
+            restaurant_coordinates = restaurants_coordinates.get(restaurant_address)
+            order_restaurants_with_coordinates.append((restaurant.name, restaurant_coordinates))
+
+        return order_restaurants_with_coordinates
+
+    def restaurants_with_distance(self):
+        order_coordinates = get_cache_coordinates(self.address)
+
+        restaurants = self.restaurants_with_coordinates()
 
         restaurants_with_distance = []
         for restaurant in restaurants:
@@ -112,7 +130,7 @@ class Order(models.Model):
 
 class OrderProduct(models.Model):
     order = models.ForeignKey(Order, related_name='ordered_products', on_delete=models.CASCADE, verbose_name='Заказ')
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name='Блюдо')
+    product = models.ForeignKey(Product, related_name='ordered_products', on_delete=models.PROTECT, verbose_name='Блюдо')
     quantity = models.PositiveSmallIntegerField('Количество')
     price = models.DecimalField('цена', max_digits=8, decimal_places=2, null=True, blank=True)
 
@@ -124,54 +142,23 @@ class OrderProduct(models.Model):
         verbose_name_plural = 'элементы заказа'
 
 
-@receiver(post_save, sender=Order)
-def order_post_save_handler(instance, **kwargs):
-    order_coordinates_key = f'order_{instance.id}_coordinates'
-    if cache.get(order_coordinates_key):
-        cache.delete(order_coordinates_key)
-    order_coordinates_value = fetch_coordinates(instance.address)
-
-    cache.set(order_coordinates_key, order_coordinates_value)
-
-    ordered_products = instance.ordered_products.all()
-    order_restaurants = []
-    for product in ordered_products:
-        menu_items = product.product.menu_items.all()
-        for item in menu_items:
-            if item.restaurant in order_restaurants:
-                continue
-            order_restaurants.append(item.restaurant)
-
-    order_restaurants_with_coordinates = []
-    for restaurant in order_restaurants:
-        restaurant_coordinates = get_cached_coordinates('restaurant', restaurant)
-        order_restaurants_with_coordinates.append((restaurant.name, restaurant_coordinates))
-
-    cache.set(f'order_{instance.id}_restaurants', order_restaurants_with_coordinates)
+def get_cache_coordinates(address):
+    address = address.strip()
+    cache_coordinates = cache.get(address)
+    if not cache_coordinates:
+        fetched_coordinates = fetch_coordinates(address)
+        cache.set(address, fetched_coordinates)
+    cache_coordinates = cache.get(address)
+    return cache_coordinates
 
 
-@receiver(post_save, sender=Restaurant)
-def restaurant_post_save_handler(instance, **kwargs):
-    restaurant_coordinates_key = f'restaurant_{instance.id}_coordinates'
-    if cache.get(restaurant_coordinates_key):
-        cache.delete(restaurant_coordinates_key)
-    restaurant_coordinates_value = fetch_coordinates(instance.address)
-    cache.set(restaurant_coordinates_key, restaurant_coordinates_value)
+def get_cleared_restaurants_coordinates(order_restaurants):
+    restaurants_addresses = [restaurant.address.strip() for restaurant in order_restaurants]
+    restaurants_coordinates = cache.get_many(restaurants_addresses)
 
+    for restaurant_address in restaurants_addresses:
+        if restaurant_address not in restaurants_coordinates:
+            coordinates = get_cache_coordinates(restaurant_address)
+            restaurants_coordinates[restaurant_address] = coordinates
 
-def get_cached_coordinates(type, instance):
-    coordinates = cache.get(f'{type}_{instance.id}_coordinates')
-    if not coordinates:
-        if type == 'order':
-            order_post_save_handler(instance)
-        elif type == 'restaurant':
-            restaurant_post_save_handler(instance)
-
-    return cache.get(f'{type}_{instance.id}_coordinates')
-
-
-def get_cached_order_restaurant(instance):
-    restaurants = cache.get(f'order_{instance.id}_restaurants')
-    if not restaurants:
-        order_post_save_handler(instance)
-    return cache.get(f'order_{instance.id}_restaurants')
+    return restaurants_coordinates

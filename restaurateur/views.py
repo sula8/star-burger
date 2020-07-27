@@ -98,7 +98,7 @@ def view_restaurants(request):
 
 @user_passes_test(is_manager, login_url='restaurateur:login')
 def view_orders(request):
-    order_items = Order.objects.annotate(total_price=Sum('ordered_products__price')).order_by('-id')
+    order_items = Order.objects.annotate(total_price=Sum('ordered_products__price')).order_by('-id').prefetch_related('ordered_products__product__menu_items__restaurant')
 
     return render(request, template_name='order_items.html', context={
         'order_items': order_items
