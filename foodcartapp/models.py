@@ -86,7 +86,7 @@ class Order(models.Model):
     called_at = models.DateTimeField('Дата звонка', null=True, blank=True)
     delivered_at = models.DateTimeField('Дата доставки заказа', null=True, blank=True)
 
-    def restaurants_with_coordinates(self):
+    def order_restaurants(self):
         ordered_products = self.ordered_products.all()
         order_restaurants = []
         for product in ordered_products:
@@ -96,27 +96,23 @@ class Order(models.Model):
                     continue
                 order_restaurants.append(item.restaurant)
 
-        restaurants_coordinates = get_cleared_restaurants_coordinates(order_restaurants)
-
-        order_restaurants_with_coordinates = []
-        for restaurant in order_restaurants:
-            restaurant_address = restaurant.address.strip()
-            restaurant_coordinates = restaurants_coordinates.get(restaurant_address)
-            order_restaurants_with_coordinates.append((restaurant.name, restaurant_coordinates))
-
-        return order_restaurants_with_coordinates
+        return order_restaurants
 
     def restaurants_with_distance(self):
-        order_coordinates = get_cache_coordinates(self.address)
+        order_restaurants = self.order_restaurants()
 
-        restaurants = self.restaurants_with_coordinates()
+        addresses = [restaurant.address.strip() for restaurant in order_restaurants]
+        addresses.append(self.address.strip())
+
+        coordinates = get_bulk_cache_coordinates(addresses)
+        order_coordinates = coordinates.get(self.address.strip())
 
         restaurants_with_distance = []
-        for restaurant in restaurants:
-            restaurant_name = restaurant[0]
-            restaurant_coordinates = restaurant[1]
+        for restaurant in order_restaurants:
+            restaurant_address = restaurant.address.strip()
+            restaurant_coordinates = coordinates.get(restaurant_address)
             restaurant_distance = round(distance.distance(order_coordinates, restaurant_coordinates).km, 2)
-            restaurants_with_distance.append((restaurant_name, restaurant_distance))
+            restaurants_with_distance.append((restaurant.name, restaurant_distance))
 
         return sorted(restaurants_with_distance, key=lambda restaurant: restaurant[1])
 
@@ -152,13 +148,13 @@ def get_cache_coordinates(address):
     return cache_coordinates
 
 
-def get_cleared_restaurants_coordinates(order_restaurants):
-    restaurants_addresses = [restaurant.address.strip() for restaurant in order_restaurants]
-    restaurants_coordinates = cache.get_many(restaurants_addresses)
+def get_bulk_cache_coordinates(addresses):
+    coordinates = cache.get_many(addresses)
 
-    for restaurant_address in restaurants_addresses:
-        if restaurant_address not in restaurants_coordinates:
-            coordinates = get_cache_coordinates(restaurant_address)
-            restaurants_coordinates[restaurant_address] = coordinates
+    for address in addresses:
+        if address not in coordinates:
+            address_coordinates = get_cache_coordinates(address)
+            coordinates[address] = address_coordinates
 
-    return restaurants_coordinates
+    return coordinates
+
