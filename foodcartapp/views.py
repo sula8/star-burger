@@ -5,13 +5,13 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 
-from foodcartapp.models import Product, Order, OrderProduct
+from foodcartapp.models import Product, Order, Basket
 
 
 class OrderProductSerializer(ModelSerializer):
 
     class Meta:
-        model = OrderProduct
+        model = Basket
         fields = ['product', 'quantity', 'price']
 
 
@@ -90,8 +90,8 @@ def register_order(request):
 
     products_fields = serializer.validated_data['products']
     if products_fields:
-        products = [OrderProduct(order=order, price=fields.get('product').price, **fields) for fields in products_fields]
-        OrderProduct.objects.bulk_create(products)
+        products = [Basket(order=order, price=fields.get('product').price, **fields) for fields in products_fields]
+        Basket.objects.bulk_create(products)
     else:
         raise IntegrityError('Order must have at least one product')
 

@@ -3,7 +3,7 @@ from django.contrib.admin import ModelAdmin
 from django.utils.html import format_html
 from django.shortcuts import reverse, redirect
 
-from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, OrderProduct
+from .models import Restaurant, Product, RestaurantMenuItem, ProductCategory, Order, Basket
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -12,7 +12,7 @@ class RestaurantMenuItemInline(admin.TabularInline):
 
 
 class OrderProductInline(admin.TabularInline):
-    model = OrderProduct
+    model = Basket
     extra = 0
 
 
