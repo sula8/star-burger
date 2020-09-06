@@ -73,24 +73,26 @@ class RestaurantMenuItem(models.Model):
 
 
 class Order(models.Model):
-    STATUSES = (('unprocessed', 'Необработанный'), ('processed', 'Обработанный'))
-    PAYMENT_TYPES = (('online', 'Электронно'), ('cash', 'Наличностью'))
-    status = models.CharField('Статус заказа', max_length=20, choices=STATUSES, default='unprocessed')
-    payment_type = models.CharField('Способ оплаты', max_length=20, choices=PAYMENT_TYPES, default='cash')
+    STATUSES = (('unprocessed', 'Необработанный'),
+                ('processed', 'Обработанный'))
+    PAYMENT_TYPES = (('online', 'Электронно'),
+                     ('cash', 'Наличностью'))
+    status = models.CharField('Статус заказа', max_length=20, choices=STATUSES, default='unprocessed', db_index=True)
+    payment_type = models.CharField('Способ оплаты', max_length=20, choices=PAYMENT_TYPES, default='cash', db_index=True)
     firstname = models.CharField('Имя', max_length=50, db_index=True)
     lastname = models.CharField('Фамилия', max_length=50, db_index=True)
     phonenumber = models.CharField('Телефон', max_length=14, db_index=True)
     address = models.CharField('Адрес', max_length=300, db_index=True)
-    comment = models.TextField(null=True, blank=True, default='', verbose_name='Комментарий')
-    registered_at = models.DateTimeField('Дата создания заказа', default=datetime.now())
-    called_at = models.DateTimeField('Дата звонка', null=True, blank=True)
-    delivered_at = models.DateTimeField('Дата доставки заказа', null=True, blank=True)
+    comment = models.TextField(blank=True, verbose_name='Комментарий')
+    registered_at = models.DateTimeField('Дата создания заказа', auto_now_add=True, db_index=True)
+    called_at = models.DateTimeField('Дата звонка', null=True, blank=True, db_index=True)
+    delivered_at = models.DateTimeField('Дата доставки заказа', null=True, blank=True, db_index=True)
 
-    def order_restaurants(self):
-        ordered_products = self.ordered_products.all()
+    def get_order_restaurants(self):
+        basket = self.basket.all()
         order_restaurants = []
-        for product in ordered_products:
-            menu_items = product.product.menu_items.all()
+        for order in basket:
+            menu_items = order.product.menu_items.all()
             for item in menu_items:
                 if item.restaurant in order_restaurants:
                     continue
@@ -98,14 +100,14 @@ class Order(models.Model):
 
         return order_restaurants
 
-    def restaurants_with_distance(self):
-        order_restaurants = self.order_restaurants()
+    def get_restaurants_with_distance(self):
+        order_restaurants = self.get_order_restaurants()
         order_address = self.address.strip()
 
         addresses = [restaurant.address.strip() for restaurant in order_restaurants]
         addresses.append(order_address)
 
-        coordinates = get_bulk_cache_coordinates(addresses)
+        coordinates = get_bulk_cached_coordinates(addresses)
 
         order_coordinates = coordinates.get(order_address)
 
@@ -126,11 +128,11 @@ class Order(models.Model):
         verbose_name_plural = 'заказы'
 
 
-class OrderProduct(models.Model):
-    order = models.ForeignKey(Order, related_name='ordered_products', on_delete=models.CASCADE, verbose_name='Заказ')
-    product = models.ForeignKey(Product, related_name='ordered_products', on_delete=models.PROTECT, verbose_name='Блюдо')
+class Basket(models.Model):
+    order = models.ForeignKey(Order, related_name='basket', on_delete=models.CASCADE, verbose_name='Заказ')
+    product = models.ForeignKey(Product, related_name='basket', on_delete=models.PROTECT, verbose_name='Блюдо')
     quantity = models.PositiveSmallIntegerField('Количество')
-    price = models.DecimalField('цена', max_digits=8, decimal_places=2, null=True, blank=True)
+    price = models.DecimalField('цена', max_digits=8, decimal_places=2)
 
     def __str__(self):
         return f"{self.product.name}, {self.order.firstname} {self.order.lastname}, {self.order.address}"
@@ -140,7 +142,7 @@ class OrderProduct(models.Model):
         verbose_name_plural = 'элементы заказа'
 
 
-def get_cache_coordinates(address):
+def get_cached_coordinates(address):
     address = address.strip()
     cache_coordinates = cache.get(address)
     if not cache_coordinates:
@@ -150,12 +152,12 @@ def get_cache_coordinates(address):
     return cache_coordinates
 
 
-def get_bulk_cache_coordinates(addresses):
+def get_bulk_cached_coordinates(addresses):
     coordinates = cache.get_many(addresses)
 
     for address in addresses:
         if address not in coordinates:
-            address_coordinates = get_cache_coordinates(address)
+            address_coordinates = get_cached_coordinates(address)
             coordinates[address] = address_coordinates
 
     return coordinates
