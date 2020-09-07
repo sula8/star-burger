@@ -12,7 +12,7 @@ class OrderProductSerializer(ModelSerializer):
 
     class Meta:
         model = Basket
-        fields = ['product', 'quantity', 'price']
+        fields = ['product', 'quantity']
 
 
 class OrderSerializer(ModelSerializer):
