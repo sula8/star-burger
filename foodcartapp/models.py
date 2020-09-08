@@ -87,15 +87,18 @@ class Order(models.Model):
     delivered_at = models.DateTimeField('Дата доставки заказа', null=True, blank=True, db_index=True)
 
     def get_order_restaurants(self):
-        basket = self.basket.all()
+        """
+        This method generates many queries,
+        please use ".prefetch_related('order_items__product__menu_items__restaurant')".
+        """
+        order_items = self.order_items.all()
         order_restaurants = []
-        for order in basket:
+        for order in order_items:
             menu_items = order.product.menu_items.all()
             for item in menu_items:
                 if item.restaurant in order_restaurants:
                     continue
                 order_restaurants.append(item.restaurant)
-
         return order_restaurants
 
     def get_restaurants_with_distance(self):
@@ -126,9 +129,9 @@ class Order(models.Model):
         verbose_name_plural = 'заказы'
 
 
-class Basket(models.Model):
-    order = models.ForeignKey(Order, related_name='basket', on_delete=models.CASCADE, verbose_name='Заказ')
-    product = models.ForeignKey(Product, related_name='basket', on_delete=models.PROTECT, verbose_name='Блюдо')
+class OrderItem(models.Model):
+    order = models.ForeignKey(Order, related_name='order_items', on_delete=models.CASCADE, verbose_name='Заказ')
+    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.PROTECT, verbose_name='Блюдо')
     quantity = models.PositiveSmallIntegerField('Количество')
     price = models.DecimalField('цена', max_digits=8, decimal_places=2)
 

@@ -6,7 +6,6 @@
   <center>
     <h2>Необработанные заказы</h2>
   </center>
-
   <hr/>
   <br/>
   <br/>
@@ -24,7 +23,7 @@
       <th>Ссылка на админку</th>
     </tr>
 
-    {% for order in order_items %}
+    {% for order in orders %}
       <tr>
         <td>{{ order.id }}</td>
         <td>{{ order.get_status_display }}</td>
