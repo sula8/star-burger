@@ -92,7 +92,8 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient"
         },
-        "KEY_PREFIX": "star"
+        "KEY_PREFIX": "star",
+        "TIMEOUT": None,
     }
 }
 
