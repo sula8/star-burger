@@ -93,8 +93,8 @@ class Order(models.Model):
         """
         order_items = self.order_items.all()
         order_restaurants = []
-        for order in order_items:
-            menu_items = order.product.menu_items.all()
+        for order_item in order_items:
+            menu_items = order_item.product.menu_items.all()
             for item in menu_items:
                 if item.restaurant in order_restaurants:
                     continue
