@@ -11,7 +11,7 @@ geographiclib==1.50
 geopy==2.0.0
 idna==2.8
 Markdown==3.2.2
-Pillow==7.1.2
+Pillow==8.1.1
 pytz==2020.1
 redis==3.5.3
 requests==2.22.0
