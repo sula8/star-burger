@@ -6,7 +6,7 @@ Django==3.0.7
 django-debug-toolbar==2.2
 django-filter==2.3.0
 django-redis==4.12.1
-djangorestframework==3.11.0
+djangorestframework==3.11.2
 geographiclib==1.50
 geopy==2.0.0
 idna==2.8
